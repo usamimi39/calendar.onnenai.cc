@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "calendar-onnenai-cc",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  // "local-dev" はローカル開発用のダミー（空欄は wrangler が受け付けない）。KV を作成したら本物の id に置き換える（DESIGN.md §8）
+  "kv_namespaces": [{ "binding": "BUSY_KV", "id": "local-dev" }],
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "vars": { "TIMEZONE": "Asia/Tokyo" },
+  "routes": [{ "pattern": "calendar.onnenai.cc", "custom_domain": true }],
+  // console.* に予定やIDを出さない前提。リクエストのメタ情報だけが残る
+  "observability": { "enabled": true },
+}

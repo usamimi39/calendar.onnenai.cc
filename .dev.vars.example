@@ -1,0 +1,9 @@
+# ローカル開発用。.dev.vars にコピーして値を入れる（.dev.vars は gitignore 済み。実際の値をここに書かない）
+# 本番は wrangler secret put で登録する（DESIGN.md §8）
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
+# カレンダー ID をカンマ区切りで
+CALENDAR_IDS=
+# 1 にすると /api/busy が KV の代わりに fixtures/mock-busy.json を返す
+MOCK=

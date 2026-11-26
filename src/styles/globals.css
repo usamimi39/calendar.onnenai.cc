@@ -1,0 +1,46 @@
+/* レイヤー順は崩さない。src/main.tsx の1行目で import すること（CLAUDE.md） */
+@layer reset, theme, base, astryx-base, astryx-theme, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import '@astryxdesign/core/reset.css';
+@import '@astryxdesign/core/astryx.css';
+/* onnenai テーマのCSS（src/themes/onnenai/onnenai.css）は、CLI が生成した src/astryx-themes.ts が import する */
+@import '@astryxdesign/core/tailwind-theme.css';
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@import 'gen-interface-jp/400.css';
+@import 'gen-interface-jp/500.css';
+@import 'gen-interface-jp/700.css';
+
+/* テーマの localTokens を Tailwind に公開する別名（値は持たず、変数を読むだけ）。一覧は docs/TOKENS.md */
+@theme reference inline {
+  --container-content: var(--layout-content-width);
+  --spacing-gutter: var(--layout-gutter);
+  --spacing-block: var(--space-block);
+  --spacing-section: var(--space-section);
+
+  /* カレンダー（DESIGN.md §6.2） */
+  --color-calendar-busy: var(--color-calendar-busy);
+  --color-calendar-now: var(--color-calendar-now);
+  --spacing-calendar-slot: var(--calendar-slot-height);
+  --spacing-calendar-time-column: var(--calendar-time-column-width);
+  --spacing-calendar-now-line: var(--calendar-now-line-width);
+  --spacing-calendar-now-dot: var(--calendar-now-dot-size);
+  --spacing-calendar-block-gap: var(--calendar-block-gap);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background-body);
+  }
+}
+
+/* OSで「視差効果を減らす」がオンなら、ページ遷移の View Transition を止める */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
+  }
+}

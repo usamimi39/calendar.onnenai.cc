@@ -1,0 +1,56 @@
+{
+  "name": "calendar-onnenai-cc",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "generate-routes": "tsr generate",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "eslint",
+    "format": "prettier --write . && eslint --fix",
+    "check": "tsc -b && eslint . && bash scripts/token-guard.sh && astryx doctor",
+    "format:check": "prettier --check .",
+    "cf-typegen": "wrangler types",
+    "deploy": "pnpm build && astryx doctor --built . && wrangler deploy",
+    "theme:build": "astryx theme build src/themes/onnenai/onnenaiTheme.ts"
+  },
+  "dependencies": {
+    "@astryxdesign/core": "0.7.11",
+    "@astryxdesign/theme-neutral": "0.7.11",
+    "@stylexjs/stylex": "0.19.1",
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-devtools": "0.10.14",
+    "@tanstack/react-router": "1.170.46",
+    "@tanstack/react-router-devtools": "1.167.3",
+    "gen-interface-jp": "0.8.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "@astryxdesign/cli": "0.7.11",
+    "@cloudflare/vite-plugin": "1.68.0",
+    "@tanstack/devtools-vite": "0.8.6",
+    "@tanstack/eslint-config": "0.5.0",
+    "@tanstack/router-cli": "^1.132.0",
+    "@tanstack/router-plugin": "1.169.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^9.20.0",
+    "prettier": "^3.8.1",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.0",
+    "vitest": "5.1.1",
+    "wrangler": "4.158.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
