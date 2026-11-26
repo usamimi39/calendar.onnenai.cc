@@ -29,6 +29,7 @@ const okCalendars = {
   'group-cal-id': {
     busy: [
       { start: '2026-11-27T09:00:00+09:00', end: '2026-11-27T09:30:00+09:00' },
+      { start: '2026-11-28T00:00:00+09:00', end: '2026-11-29T00:00:00+09:00' },
     ],
   },
   'work@example.org': {
@@ -51,14 +52,14 @@ function captureConsole() {
 afterEach(() => vi.restoreAllMocks())
 
 describe('refresh（cron の本体）', () => {
-  it('取得窓は [今日 0:00, +15日)、CALENDAR_IDS の空白は取り除く', async () => {
+  it('取得窓は [今日 0:00, +64日)（公開上限 + 1日）、CALENDAR_IDS の空白は取り除く', async () => {
     captureConsole()
     const { kv } = fakeKV()
     const google = fakeGoogle({ calendars: okCalendars })
     await refresh(env(kv), NOW, google.fetchImpl)
     const body = JSON.parse(String(google.calls[1].init.body))
     expect(body.timeMin).toBe('2026-11-26T00:00:00+09:00')
-    expect(body.timeMax).toBe('2026-12-11T00:00:00+09:00')
+    expect(body.timeMax).toBe('2027-01-29T00:00:00+09:00')
     expect(body.items).toEqual([
       { id: 'someone@example.com' },
       { id: 'group-cal-id' },
@@ -80,6 +81,7 @@ describe('refresh（cron の本体）', () => {
     expect(JSON.parse(puts[0].value)).toEqual({
       generatedAt: NOW,
       busy: [[jst('2026-11-27 09:00'), jst('2026-11-27 11:00')]],
+      allDay: [[jst('2026-11-28 00:00'), jst('2026-11-29 00:00')]],
     })
   })
 

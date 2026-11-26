@@ -34,10 +34,10 @@ describe('レスポンスはホワイトリストだけ', () => {
       )
       const body = await readBody(res)
       expect(Object.keys(body).sort()).toEqual(
-        ['busy', 'generatedAt', 'range', 'timezone'].sort(),
+        ['allDay', 'busy', 'generatedAt', 'range', 'timezone'].sort(),
       )
       expect(Object.keys(body.range).sort()).toEqual(['end', 'start'])
-      for (const item of body.busy) {
+      for (const item of [...body.busy, ...body.allDay]) {
         expect(Object.keys(item).sort()).toEqual(['end', 'start'])
       }
     },

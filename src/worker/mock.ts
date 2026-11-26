@@ -1,7 +1,7 @@
 // MOCK=1 のときのデータ（DESIGN.md §6.7）。fixtures/mock-busy.json の「今日からの相対日 + JST 時刻」を
 // 今日の日付に置き換えて、cron と同じく normalize した形にする。日付を固定しないので、いつ開いても今日から表示される
 import fixture from '../../fixtures/mock-busy.json'
-import { normalize } from '../lib/busy'
+import { splitBusy } from '../lib/busy'
 import type { Interval } from '../lib/busy'
 import { DAY, MINUTE, startOfDayJST } from '../lib/time'
 import type { StoredBusy } from './store'
@@ -29,6 +29,6 @@ export function buildMock(
   return {
     // cron が直前の15分境界で取得した、という体裁
     generatedAt: Math.floor(now / CRON_INTERVAL) * CRON_INTERVAL,
-    busy: normalize(intervals),
+    ...splitBusy(intervals),
   }
 }

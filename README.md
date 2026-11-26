@@ -9,12 +9,12 @@ Google カレンダーから「埋まっている時間帯だけ」を公開す�
 
 ```
 Cron（15分ごと） → Worker scheduled() → Google FreeBusy API → 丸め・マージ → KV（busy:v1）
-ブラウザ → GET /api/busy?week=0|1 → Worker が KV を読んで、今日〜14日の範囲に切って返す
+ブラウザ → GET /api/busy?week=0〜8 → Worker が KV を読んで、その週（今日より前は除く）に切って返す
 ```
 
 - Google の API は `freebusy.query` だけを使う（`src/worker/google.ts`）。FreeBusy は開始・終了時刻しか返さないので、予定の中身は構造的に取れない
 - リクエストから Google を呼ぶことはない。Google が落ちている・トークンが切れているときは、前回の KV の値を返し続ける（「最終更新」が古くなるだけ）
-- 表示範囲（今日 0:00〜14日後 0:00、週は今週・来週の2択）はサーバーで強制する
+- 表示範囲（今日 0:00〜63日後 0:00、週は今週〜8週先）はサーバーで強制する
 
 ## 開発
 

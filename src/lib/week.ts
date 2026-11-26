@@ -19,6 +19,7 @@ export type DayView = {
   busy: Interval[] // その日の 0:00〜24:00 に切った区間（リスト用。8時前もそのまま）
   segments: Segment[] // 8:00〜24:00 の32マス（グリッド用）
   early: boolean // 8:00 より前に埋まりがある
+  allDay: boolean // 終日予定がある
 }
 
 export type WeekView = {
@@ -26,10 +27,15 @@ export type WeekView = {
   last: number // 日曜 0:00
   days: DayView[]
   generatedAt: number
+  hasAllDay: boolean // 週のどこかに終日予定がある（PC の終日の行を出すか）
+}
+
+function parseIntervals(list: BusyResponse['busy']): Interval[] {
+  return list.map(({ start, end }) => [Date.parse(start), Date.parse(end)])
 }
 
 export function parseBusy(data: BusyResponse): Interval[] {
-  return data.busy.map(({ start, end }) => [Date.parse(start), Date.parse(end)])
+  return parseIntervals(data.busy)
 }
 
 // range（W ∩ L）より前・後の日は「過去」と同じ扱い（灰色・区間なし）
@@ -43,6 +49,8 @@ export function buildWeek(
   const rangeEnd = Date.parse(data.range.end)
   const today = startOfDayJST(now)
   const busy = parseBusy(data)
+  // デプロイ直後にキャッシュ（max-age=60）に残った古い返事（allDay なし）でも落ちないように
+  const allDay = parseIntervals((data as Partial<BusyResponse>).allDay ?? [])
 
   const days = Array.from({ length: 7 }, (_, i): DayView => {
     const start = first + i * DAY
@@ -54,6 +62,7 @@ export function buildWeek(
       busy: dayBusy,
       segments: toSegments(start, dayBusy),
       early: hasBusyBefore(start, dayBusy),
+      allDay: inRange && clipToWindow(allDay, [start, start + DAY]).length > 0,
     }
   })
 
@@ -62,6 +71,7 @@ export function buildWeek(
     last: first + 6 * DAY,
     days,
     generatedAt: Date.parse(data.generatedAt),
+    hasAllDay: days.some((day) => day.allDay),
   }
 }
 

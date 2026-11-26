@@ -31,7 +31,11 @@ export function DayList({ days }: { days: DayView[] }) {
 // Figma: Calendar/DayRow（Date, Times, Today）。区間なしは「予定なし」を secondary で
 function DayRow({ day }: { day: DayView }) {
   // 折り返すのは " / " の所だけ（"19:00–" と "21:00" の間で切らない）
-  const times = day.busy.map(([s, e]) => formatTimeRange(s, e, day.start))
+  // 終日予定があれば先頭に「終日予定あり」（その日の時間指定の予定は続けて出す）
+  const times = [
+    ...(day.allDay ? [calendarText.allDayLabel] : []),
+    ...day.busy.map(([s, e]) => formatTimeRange(s, e, day.start)),
+  ]
 
   return (
     <VStack

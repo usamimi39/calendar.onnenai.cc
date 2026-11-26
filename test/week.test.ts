@@ -12,6 +12,9 @@ const data: BusyResponse = {
     start: '2026-11-26T00:00:00+09:00',
     end: '2026-11-30T00:00:00+09:00',
   },
+  allDay: [
+    { start: '2026-11-27T00:00:00+09:00', end: '2026-11-29T00:00:00+09:00' },
+  ],
   busy: [
     { start: '2026-11-26T09:00:00+09:00', end: '2026-11-26T10:30:00+09:00' },
     { start: '2026-11-27T23:00:00+09:00', end: '2026-11-28T01:00:00+09:00' },
@@ -55,6 +58,19 @@ describe('buildWeek', () => {
     expect(sun.segments[0]).toMatchObject({ kind: 'busy', slots: 2 })
     expect(view.days[5].early).toBe(true) // 0:00–1:00
     expect(view.days[3].early).toBe(false)
+  })
+
+  it('終日予定のある日は allDay（2日間の終日は両方の日）', () => {
+    expect(view.days.map((d) => d.allDay)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+    ])
+    expect(view.hasAllDay).toBe(true)
   })
 
   it('過去の日は区間を持たない', () => {

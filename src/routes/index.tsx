@@ -10,7 +10,7 @@ import { calendarText } from '../content/site'
 import { PageHeader } from '../components/PageHeader'
 import { WeekGrid } from '../components/WeekGrid'
 import { useNow30 } from '../hooks/useNow'
-import { weekWindow } from '../lib/busy'
+import { isWeek, weekWindow } from '../lib/busy'
 import type { Week } from '../lib/busy'
 import { fetchBusy } from '../lib/fetchBusy'
 import { DAY, startOfDayJST } from '../lib/time'
@@ -19,10 +19,11 @@ import { buildWeek, nowSlot } from '../lib/week'
 type Search = { week: Week }
 
 export const Route = createFileRoute('/')({
-  // 表示する週は ?week=0|1。それ以外は今週にする（範囲の制限はサーバーが強制する）
-  validateSearch: (search: Record<string, unknown>): Search => ({
-    week: search.week === 1 || search.week === '1' ? 1 : 0,
-  }),
+  // 表示する週は ?week=0〜MAX_WEEK。それ以外は今週にする（範囲の制限はサーバーが強制する）
+  validateSearch: (search: Record<string, unknown>): Search => {
+    const week = Number(search.week)
+    return { week: isWeek(week) ? week : 0 }
+  },
   loaderDeps: ({ search }) => ({ week: search.week }),
   loader: async ({ deps, abortController }) => ({
     data: await fetchBusy(deps.week, abortController.signal),

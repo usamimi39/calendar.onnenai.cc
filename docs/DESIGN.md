@@ -6,6 +6,8 @@
 
 ---
 
+> v0.3（2026-11-26）: 公開する範囲を「今週・来週」から「今週〜8週先（約2ヵ月）」に広げた（ユーザー指示。SPEC §11 の「表示範囲の切り替え」を実施）。`week` は 0〜8、公開上限は63日、取得は64日。週切替は Figma の WeekSwitch（SegmentedControl）をやめ、Figma に無い週送り「‹ 今週 ›」（WeekNav）にした。以下の D1・§5 の数字はこの変更後のもの
+
 ## 0. 仕様から修正・明確化した点（要確認）
 
 | # | 仕様の記述 | 問題 | 【決定】（推奨案） |
@@ -26,10 +28,10 @@
                 │   ├─ refresh token → access token (oauth2.googleapis.com)      │
                 │   ├─ POST calendar/v3/freeBusy  (全カレンダー1リクエスト)       │──▶ Google
                 │   ├─ normalize: 丸め → マージ（カレンダー区別を消す）            │
-                │   └─ KV.put("busy:v1", {generatedAt, busy[]})  ※全失敗なら書かない│
+                │   └─ KV.put("busy:v1", {generatedAt, busy[], allDay[]}) ※全失敗なら書かない│
                 │                                                                │
  Browser ─────▶ │ fetch()                                                        │
-   GET /        │   ├─ /api/busy?week=0|1 → KV.get → 現在時刻で範囲クリップ → JSON │
+   GET /        │   ├─ /api/busy?week=0〜8 → KV.get → 現在時刻で範囲クリップ → JSON │
    GET /api/... │   └─ それ以外 → Static Assets（Vite の SPA ビルド）            │
                 └────────────────────────────────────────────────────────────────┘
 ```
@@ -55,10 +57,10 @@ calendar.onnenai.cc/
 │  ├─ main.tsx / router.tsx  # portfolio と同じ組み方（1行目 globals.css → <Theme> → RouterProvider）
 │  ├─ routes/
 │  │  ├─ __root.tsx          # Header / Footer
-│  │  └─ index.tsx           # validateSearch で ?week=0|1、loader で /api/busy を取得
+│  │  └─ index.tsx           # validateSearch で ?week=0〜8、loader で /api/busy を取得
 │  ├─ components/
 │  │  ├─ Header.tsx Footer.tsx ThemeToggle.tsx …   # portfolio から（ナビは削除、Footer は Misskey のみ）
-│  │  ├─ WeekSwitch.tsx      # Astryx SegmentedControl
+│  │  ├─ WeekNav.tsx         # 週送り「‹ 今週 ›」（Astryx IconButton + Button）
 │  │  ├─ WeekGrid.tsx        # PC: 週グリッド
 │  │  ├─ DayHeader.tsx       # グリッドの日付見出し（Default / Today / Past、Early 目印）
 │  │  ├─ DayColumn.tsx       # 1日の列（Grid + GridSpan で区間を積む）
@@ -115,7 +117,7 @@ Secret: `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` / `
 
 ## 4. 取得と正規化（cron: `refresh.ts`）
 
-1. `now` を取得。取得窓 = `[startOfDayJST(now), startOfDayJST(now) + 15日)`
+1. `now` を取得。取得窓 = `[startOfDayJST(now), startOfDayJST(now) + 64日)`（公開上限 + 1日。FreeBusy が64日の範囲を1リクエストで返すことを 2026-11-26 に実データで確認）
    - 公開上限より **1 日広く** 取る。23:50 に取得したデータを 0:05 に配信しても翌日分が欠けないため（公開時に再クリップするので漏れない）
 2. アクセストークン取得: `POST https://oauth2.googleapis.com/token`（`grant_type=refresh_token`）。15分毎に取り直してよい（キャッシュ不要）
 3. `POST https://www.googleapis.com/calendar/v3/freeBusy`
@@ -127,10 +129,11 @@ Secret: `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` / `
    - 使うフィールドは `calendars[*].busy[*].start/end` のみ。型定義もそれだけにして、他フィールドを読む余地をコード上に作らない
 4. 正規化（`busy.ts`、全部純粋関数）
    1. 全カレンダーの区間を 1 配列に flatten（**この時点でカレンダーの区別を捨てる**）
+   1. 終日の判定（2026-11-26 追加）: 生の区間のうち「JST 0:00 ちょうどに始まり、ちょうど丸 n 日で終わる」ものを終日とみなして `allDay` に分け、マージだけする。FreeBusy には予定の種類が無いので時刻だけで判定する（0:00〜翌0:00 の時間指定の予定も終日に見える）。以下の丸め・マージは残りの時間指定の区間だけに行う
    2. 各区間を `[floor30(start), ceil30(end))` に丸め
    3. start でソート → `next.start <= cur.end` なら結合（重なり＋隣接）
 5. KV 保存判定
-   - 成功カレンダー ≥ 1 → `KV.put("busy:v1", JSON.stringify({ generatedAt, busy }))`
+   - 成功カレンダー ≥ 1 → `KV.put("busy:v1", JSON.stringify({ generatedAt, busy, allDay }))`（`allDay` の無い古い値は終日なしとして読む）
    - 全失敗 / HTTP エラー / トークン失敗 → **書かない**（前回の値が残る＝フォールバック）
    - ログ: 失敗時に `console.error("refresh failed", { stage, status, failedCount })` 程度。**ID・時刻・区間は出さない**
 
@@ -138,10 +141,10 @@ Secret: `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` / `
 
 ## 5. 配信 API（`api.ts`）
 
-`GET /api/busy?week=0|1`
+`GET /api/busy?week=0〜8`
 
 1. `week` を検証: `"0"` / `"1"` 以外（未指定含む）→ **400**（`{ "error": "bad_request" }`）。黙って 0 にすると不正値を検知しにくいので 400 を推奨
-2. 公開上限 `L = [startOfDayJST(now), startOfDayJST(now) + 14日)`
+2. 公開上限 `L = [startOfDayJST(now), startOfDayJST(now) + 63日)`（= (MAX_WEEK + 1) × 7。今日が月曜でも8週先の日曜まで入る）
 3. 週窓 `W`: 今日を含む週の月曜 00:00 JST + `week*7日` から 7日間
 4. 返す窓 = `W ∩ L`（空になり得る。その場合 `busy: []`）
 5. KV から読み、各区間を窓でクリップ（はみ出しは切り詰め、完全に外は捨てる）
@@ -158,7 +161,7 @@ Secret: `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` / `
 7. KV が空（初回デプロイ直後など）→ **503** `{ "error": "unavailable" }` → 画面は「情報を取得できませんでした」
 8. ヘッダー: `Cache-Control: public, max-age=60`、`Content-Type: application/json`、`X-Robots-Tag: noindex`
 
-**レスポンス構築はホワイトリスト方式**（`{timezone, generatedAt, range, busy:[{start,end}]}` をリテラルで組み立てる）。KV の中身を spread しない。
+**レスポンス構築はホワイトリスト方式**（`{timezone, generatedAt, range, busy:[{start,end}], allDay:[{start,end}]}` をリテラルで組み立てる）。KV の中身を spread しない。
 
 ## 6. フロントエンド
 
@@ -214,7 +217,7 @@ portfolio のルール（インライン style・任意値・StyleX 禁止）の
 
 - 見出し・説明文は Figma の確定版（2026-11-26 ユーザー修正）: タイトル「おんねのカレンダー」、説明「予定の詳細は公開していません。」（PC・スマホ共通）。仕様 §7 の仮タイトル・文案は使わない。文言は `src/content/site.ts` に置く
 
-- ツールバー: WeekSwitch + 期間（`11/24（月）– 11/30（日）`）+ 最終更新。**最終更新は仕様の「フッター」からツールバー右端（スマホはリスト下）へ移した**（データの鮮度はデータの近くにある方が分かりやすいため）。Footer は Misskey リンクのみ
+- ツールバー: WeekNav + 期間（`11/24（月）– 11/30（日）`）+ 最終更新。**最終更新は仕様の「フッター」からツールバー右端（スマホはリスト下）へ移した**（データの鮮度はデータの近くにある方が分かりやすいため）。Footer は Misskey リンクのみ
 - ローディング: Astryx `Skeleton`、取得失敗: Astryx `EmptyState`「情報を取得できませんでした」（Figma にはまだ無い）
 - ライト/ダーク: Astryx の `<Theme>`（portfolio と同じ）
 - `<meta name="robots" content="noindex">`
@@ -258,7 +261,7 @@ portfolio のルール（インライン style・任意値・StyleX 禁止）の
 - プライバシー: レスポンス JSON のキー集合が許可リストと完全一致
 
 手動（実データ、仕様 §9-5）:
-- 終日予定 → 0:00〜翌0:00 で来るか（グリッドでは 8〜24 全面＋▲）
+- 終日予定 → 0:00〜翌0:00 で来るか（来る。2026-11-26 から終日として分け、PC は日付見出しの下の終日の行に「終日予定あり」のバー、スマホはその日の先頭に「終日予定あり」）
 - 繰り返し予定 → FreeBusy が展開して返すか
 - 他アカウント所有の共有カレンダーを `CALENDAR_IDS` に入れて実際に取れるか（取れなければ errors で除外されることの確認）
 - `curl` でレスポンス・HTML を取り、カレンダー ID / メールアドレス / 予定名が出ないことを grep

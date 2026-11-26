@@ -11,9 +11,16 @@ import {
 } from './time'
 
 export type Interval = [start: number, end: number]
-export type Week = 0 | 1
+// 今週を 0 として何週先か（0〜MAX_WEEK）。2026-11-26 に「今週/来週」から約2ヵ月先までに広げた
+export type Week = number
+export const MAX_WEEK = 8
 
-export const PUBLIC_DAYS = 14 // 公開上限（D1）
+export function isWeek(value: number): value is Week {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_WEEK
+}
+
+// 公開上限（D1）。今日が月曜でも MAX_WEEK 週先の日曜まで入る日数 = (MAX_WEEK + 1) × 7 = 63日
+export const PUBLIC_DAYS = (MAX_WEEK + 1) * 7
 export const GRID_START_HOUR = 8 // 週グリッドは 8:00〜24:00
 export const SLOTS_PER_DAY = ((24 - GRID_START_HOUR) * HOUR) / HALF_HOUR // 32
 
@@ -42,6 +49,26 @@ export function normalize(list: readonly Interval[]): Interval[] {
   return mergeIntervals(list.map(roundInterval))
 }
 
+// 終日予定とみなす区間: JST の 0:00 ちょうどに始まり、ちょうど丸 n 日（n ≥ 1）で終わる（2026-11-26 ユーザー指示）
+// FreeBusy には予定の種類が無いので時刻だけで判定する。0:00〜翌0:00 の時間指定の予定も終日に見える
+export function isAllDay([start, end]: Interval): boolean {
+  return (
+    end > start && start === startOfDayJST(start) && (end - start) % DAY === 0
+  )
+}
+
+// 生の区間を「終日」と「時間指定」に分ける。時間指定は丸め・マージ、終日はマージだけ
+// 終日の日にある時間指定の予定は、時間指定として残す（グリッドに出る）
+export function splitBusy(list: readonly Interval[]): {
+  busy: Interval[]
+  allDay: Interval[]
+} {
+  return {
+    busy: normalize(list.filter((iv) => !isAllDay(iv))),
+    allDay: mergeIntervals(list.filter(isAllDay)),
+  }
+}
+
 // 窓の中に切り詰める。完全に外（端に接するだけも含む）は捨てる
 export function clipToWindow(
   list: readonly Interval[],
@@ -62,7 +89,7 @@ export function intersect([as, ae]: Interval, [bs, be]: Interval): Interval {
   return [s, Math.max(s, Math.min(ae, be))]
 }
 
-// 公開上限 L = [今日 0:00 JST, +14日)
+// 公開上限 L = [今日 0:00 JST, +PUBLIC_DAYS日)
 export function publicLimit(now: number): Interval {
   const today = startOfDayJST(now)
   return [today, today + PUBLIC_DAYS * DAY]

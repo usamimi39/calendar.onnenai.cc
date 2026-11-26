@@ -2,6 +2,7 @@ import { Grid } from '@astryxdesign/core/Grid'
 import { HStack } from '@astryxdesign/core/HStack'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { WeekView } from '../lib/week'
+import { AllDayRow } from './AllDayRow'
 import { DayColumn } from './DayColumn'
 import { DayHeader } from './DayHeader'
 import { TimeLabels } from './TimeLabels'
@@ -28,6 +29,7 @@ export function WeekGrid({ view, todaySlot }: WeekGridProps) {
           ))}
         </Grid>
       </HStack>
+      {view.hasAllDay && <AllDayRow days={view.days} />}
       <HStack>
         <TimeLabels />
         <Grid columns={7} className="flex-1">

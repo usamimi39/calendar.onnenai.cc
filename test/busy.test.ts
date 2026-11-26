@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_WEEK,
   SLOTS_PER_DAY,
   clipToWindow,
   hasBusyBefore,
   intersect,
+  isAllDay,
   mergeIntervals,
   normalize,
   publicLimit,
   roundInterval,
   servedWindow,
+  splitBusy,
   toSegments,
   weekWindow,
 } from '../src/lib/busy'
@@ -146,9 +149,10 @@ describe('clipToWindow', () => {
 })
 
 describe('publicLimit', () => {
-  it('[今日 0:00, +14日 0:00) のちょうど14日間', () => {
+  it('[今日 0:00, +63日 0:00)（今週 + 8週先まで入る日数）', () => {
+    expect(MAX_WEEK).toBe(8)
     expect(publicLimit(jst('2026-11-26 14:20'))).toEqual(
-      iv('2026-11-26', '2026-12-10'),
+      iv('2026-11-26', '2027-01-28'),
     )
   })
 
@@ -216,11 +220,20 @@ describe('servedWindow（W ∩ L）', () => {
     expect(servedWindow(now, 1)).toEqual(iv('2026-11-30', '2026-12-07'))
   })
 
+  it('8週先（week=8）は、月曜でも日曜でも1週まるごと入る', () => {
+    expect(servedWindow(jst('2026-11-30 00:00'), 8)).toEqual(
+      iv('2027-01-25', '2027-02-01'),
+    )
+    expect(servedWindow(jst('2026-12-06 23:59'), 8)).toEqual(
+      iv('2027-01-25', '2027-02-01'),
+    )
+  })
+
   it('どの時刻でも公開上限の中に収まる', () => {
     const start = jst('2026-11-23')
     for (let t = start; t < start + 14 * DAY; t += 37 * 60_000) {
       const [ls, le] = publicLimit(t)
-      for (const week of [0, 1] as const) {
+      for (let week = 0; week <= MAX_WEEK; week++) {
         const [s, e] = servedWindow(t, week)
         expect(s).toBeGreaterThanOrEqual(ls)
         expect(e).toBeLessThanOrEqual(le)
@@ -339,5 +352,38 @@ describe('hasBusyBefore（DayHeader の「▲ 8時前あり」）', () => {
       hasBusyBefore(day, [iv('2026-11-25 06:00', '2026-11-25 07:00')]),
     ).toBe(false)
     expect(hasBusyBefore(day, [])).toBe(false)
+  })
+})
+
+describe('isAllDay / splitBusy（終日予定の判定）', () => {
+  it('JST 0:00 ちょうどに始まり、ちょうど丸 n 日で終わる区間だけが終日', () => {
+    expect(isAllDay(iv('2026-11-26 00:00', '2026-11-27 00:00'))).toBe(true)
+    expect(isAllDay(iv('2026-11-26 00:00', '2026-11-29 00:00'))).toBe(true) // 3日間
+    expect(isAllDay(iv('2026-11-26 00:00', '2026-11-26 23:30'))).toBe(false)
+    expect(isAllDay(iv('2026-11-26 00:30', '2026-11-27 00:00'))).toBe(false)
+    expect(isAllDay(iv('2026-11-26 09:00', '2026-11-27 09:00'))).toBe(false) // 24時間でも 0:00 始まりでない
+    expect(isAllDay(iv('2026-11-26 00:00', '2026-11-27 00:30'))).toBe(false)
+    // UTC の 0:00（= JST 9:00）は終日ではない
+    expect(
+      isAllDay([
+        Date.parse('2026-11-26T00:00:00Z'),
+        Date.parse('2026-11-27T00:00:00Z'),
+      ]),
+    ).toBe(false)
+  })
+
+  it('生の区間を終日と時間指定に分け、時間指定は丸め・マージ、終日はマージする', () => {
+    const { busy, allDay } = splitBusy([
+      iv('2026-11-26 00:00', '2026-11-27 00:00'), // 終日
+      iv('2026-11-27 00:00', '2026-11-28 00:00'), // 隣の終日 → 1つに
+      iv('2026-11-26 09:10', '2026-11-26 10:05'), // 終日の日の時間指定は残す
+      iv('2026-11-26 10:00', '2026-11-26 11:00'),
+      iv('2026-11-29 00:00', '2026-11-29 12:00'), // 0:00 始まりでも丸1日でないので時間指定
+    ])
+    expect(allDay).toEqual([iv('2026-11-26 00:00', '2026-11-28 00:00')])
+    expect(busy).toEqual([
+      iv('2026-11-26 09:00', '2026-11-26 11:00'),
+      iv('2026-11-29 00:00', '2026-11-29 12:00'),
+    ])
   })
 })

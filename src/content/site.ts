@@ -16,9 +16,11 @@ export const site = {
 export const calendarText = {
   title: 'おんねのカレンダー',
   description: '予定の詳細は公開していません。',
-  weeks: { 0: '今週', 1: '来週' },
-  // 週切替（SegmentedControl）の読み上げ用ラベル。画面には出ない（2026-11-26 ユーザー確認）
-  weekSwitchLabel: '表示する週',
+  // 週送り（WeekNav）。Figma には無い（2026-11-26 ユーザー指示で追加）。矢印のラベルは読み上げ用
+  thisWeek: '今週',
+  prevWeek: '前の週',
+  nextWeek: '次の週',
+  weekNavLabel: '表示する週',
   weekdays: ['月', '火', '水', '木', '金', '土', '日'],
   updatedPrefix: '最終更新',
   early: '▲ 8時前あり',
@@ -26,6 +28,8 @@ export const calendarText = {
   noBusy: '予定なし',
   // 予定ブロックの aria-label の頭（DESIGN.md §6.3「予定あり 09:00–10:30」）
   busyLabel: '予定あり',
+  // 終日予定（0:00 始まり・丸 n 日の区間）のバーとリストの表示（2026-11-26 ユーザー指示）
+  allDayLabel: '終日予定あり',
   // 取得失敗（DESIGN.md §6.6。Figma にはまだ無い）
   error: '情報を取得できませんでした',
 } as const
@@ -59,7 +63,7 @@ export const privacyText = {
       heading: '保存と共有',
       paragraphs: [
         [
-          '取得したデータ（今日から15日分の時間帯）は Cloudflare 上に保存し、15分ごとに新しいものへ置き換えます。第三者への提供・販売や、広告への利用はしません。',
+          '取得したデータ（今日から約2ヵ月分の時間帯）は Cloudflare 上に保存し、15分ごとに新しいものへ置き換えます。第三者への提供・販売や、広告への利用はしません。',
         ],
       ],
     },

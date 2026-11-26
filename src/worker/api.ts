@@ -1,8 +1,8 @@
-// GET /api/busy?week=0|1（DESIGN.md §5）
+// GET /api/busy?week=0〜MAX_WEEK（DESIGN.md §5）
 // - 返す窓 = 週窓 W ∩ 公開上限 L（サーバーで強制。クライアントの値で広げられない）
-// - レスポンスはホワイトリストでリテラルに組み立てる（KV の中身を spread しない）
+// - レスポンスはホワイトリストでリテラルに組み立てる（KV の中身を spread しない）。キーは timezone / generatedAt / range / busy / allDay だけ
 // - リクエスト経路から Google API は呼ばない（KV を読むだけ）
-import { clipToWindow, servedWindow } from '../lib/busy'
+import { clipToWindow, isWeek, servedWindow } from '../lib/busy'
 import type { Week } from '../lib/busy'
 import { toJstIso } from '../lib/time'
 import type { BusyResponse } from '../lib/types'
@@ -26,13 +26,12 @@ function json(body: unknown, status: number, headers: HeadersInit = {}) {
 const errorResponse = (status: 400 | 503, error: string) =>
   json({ error }, status, { 'Cache-Control': 'no-store' })
 
-// "0" / "1" がちょうど1つだけのときだけ受け付ける。未指定・複数・"00"・" 1" などは全部 400
+// "0"〜"8"（MAX_WEEK）がちょうど1つだけのときだけ受け付ける。未指定・複数・"00"・" 1"・"1.0" などは全部 400
 export function parseWeek(params: URLSearchParams): Week | null {
   const values = params.getAll('week')
-  if (values.length !== 1) return null
-  if (values[0] === '0') return 0
-  if (values[0] === '1') return 1
-  return null
+  if (values.length !== 1 || !/^(0|[1-9]\d*)$/.test(values[0])) return null
+  const week = Number(values[0])
+  return isWeek(week) ? week : null
 }
 
 export function buildResponse(
@@ -46,6 +45,10 @@ export function buildResponse(
     generatedAt: toJstIso(stored.generatedAt),
     range: { start: toJstIso(window[0]), end: toJstIso(window[1]) },
     busy: clipToWindow(stored.busy, window).map(([s, e]) => ({
+      start: toJstIso(s),
+      end: toJstIso(e),
+    })),
+    allDay: clipToWindow(stored.allDay, window).map(([s, e]) => ({
       start: toJstIso(s),
       end: toJstIso(e),
     })),
