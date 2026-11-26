@@ -112,7 +112,7 @@ curl "http://localhost:3000/api/busy?week=0"
 pnpm exec wrangler kv namespace create BUSY_KV
 ```
 
-出てきた `id` を `wrangler.jsonc` の `kv_namespaces[0].id`（いまは `"local-dev"`）に書き換え、`pnpm cf-typegen` を実行する。KV の id は秘密情報ではない。
+出てきた `id` を `wrangler.jsonc` の `kv_namespaces[0].id` に書き、`pnpm cf-typegen` を実行する（作成済み。作り直したときだけ必要）。KV の id は秘密情報ではない。
 
 ### 2. Secret を登録する
 

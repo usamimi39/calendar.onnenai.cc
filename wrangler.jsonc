@@ -10,8 +10,8 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
   },
-  // "local-dev" はローカル開発用のダミー（空欄は wrangler が受け付けない）。KV を作成したら本物の id に置き換える（DESIGN.md §8）
-  "kv_namespaces": [{ "binding": "BUSY_KV", "id": "local-dev" }],
+  // 本番の KV（2026-11-26 作成）。ローカル開発（pnpm dev）は miniflare のローカル KV を使うので本番には触らない
+  "kv_namespaces": [{ "binding": "BUSY_KV", "id": "685e792cfcb445bca82885d72ed06274" }],
   "triggers": { "crons": ["*/15 * * * *"] },
   "vars": { "TIMEZONE": "Asia/Tokyo" },
   "routes": [{ "pattern": "calendar.onnenai.cc", "custom_domain": true }],
